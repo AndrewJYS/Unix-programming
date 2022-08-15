@@ -1,4 +1,4 @@
-# linux命令  
+# shell常用命令  
 
 ## Bash解析器常用快捷键  
 
@@ -7,10 +7,10 @@ clear：清屏
 CTRL+c：中断终端的操作  
 CTRL+a：光标移到头部  
 CTRL+e：光标移到尾部  
-CTRL+h：删除光标前边的字符  
-CTRL+d：删除光标后边的字符  
-CTRL+u：删除光标前边的所有字符  
-CTRL+k：删除光标后边的所有字符  
+CTRL+h：删除光标前边的**一个**字符  
+CTRL+d：删除光标后边的**一个**字符  
+CTRL+u：删除光标前边的**所有**字符  
+CTRL+k：删除光标后边的**所有**字符  
 
 ## linux命令格式  
 
@@ -374,4 +374,121 @@ tar -xjvf test.tar.bz2 解压
 tar -xvf 压缩文件名
 ```
 
-###
+## 文件权限管理  
+
+### chmod  
+
+改变文件权限模式  
+
+```shell
+chmod u/g/o/a +/-/= rwx 文件
+```
+
+u：表示文件的所属者  
+g：所属组  
+o：其他  
+a：以上三者都是  
++：增加权限  
+-：减少权限  
+=：设置权限  
+
+示例：  
+
+```shell
+chmod o+w a
+chmod g-x a
+chmod o=x a （设置为只有x权限）
+chmod u=rw, g=rw, o=r a
+```
+
+上面的设置方法是“字母法”，下面介绍“数字法”  
+
+7: rwx  
+6: rw-  
+5: r-x  
+4: r--  
+3: -wx  
+2: -w-  
+1: --x  
+0: ---
+
+示例如下：  
+
+```shell
+chmod u=7, g=5, o=4 a
+等同于
+chmod 0754 a  （不要忘记前面的0，表示8进制的开始符）
+
+chmod -R 0754 test （不仅改变test文件夹的权限，还递归修改test内所有文件的权限）
+```
+
+### chown  
+
+用于修改文件所有者  
+
+```shell
+chown 用户名 文件或目录名  
+```
+
+### chgrp  
+
+修改文件所属组  
+
+```shell
+chgrp 用户组名 文件或目录名
+```
+
+## 软件安装  
+
+### 在线  
+
+```shell
+sudo apt install tree  安装tree
+sudo apt remove tree 卸载tree
+sudo apt update 列出所有可更新的软件清单
+sudo apt upgrade 更新系统已安装的软件包
+sudo apt update <package_name> 更新指定的软件包
+sudo apt clean 清除作为更新过程的一部分而下载的冗余包文件
+```
+
+### 离线  
+
+```shell
+sudo dpkg -i test.deb    安装test.deb（i表示install)
+sudo dpkg -r tree      卸载tree（r表示remove）
+```
+
+## 重定向  
+
+```shell
+cat /etc/passwd > a.txt  将cat /etc/passwd输出到a.txt，而且会覆盖a.txt中的内容
+cat /etc/passwd >> /home/a.txt 将cat /etc/passwd输出追加到到/home/a.txt
+llll 2> err.txt  将llll命令的错误信息重定向到err.txt
+```
+
+## ln  
+
+软链接：  
+(1)可以应用于目录  
+(2)可以跨文件系统  
+(3)不会增加被链接文件的链接次数  
+(4)大小为指定的**绝对路径**所包含的字符总数  
+(5)有自己的inode号  
+(6)权限无关紧要  
+
+硬链接：  
+(1) 硬链接，以文件副本的形式存在。但不占用实际空间。  
+(2) 不允许给目录创建硬链接。  
+(3) 硬链接只有在同一个文件系统中才能创建。  
+(4) 删除其中一个硬链接文件并不影响其他有相同 inode 号的文件。  
+
+```shell
+ln 源文件 链接文件    硬链接
+ln -s 源文件 链接文件    软链接
+```
+
+## 参考  
+
+Advanced Programming in the UNIX Environment, 3rd edition  
+[相关课程](https://www.bilibili.com/video/BV1Yo4y1D7Ap?p=37&vd_source=4b75b13c678ed297c8d0ed42e806f46b)  
+[软链接与硬链接](https://blog.csdn.net/qq_26129413/article/details/110228234)  
