@@ -487,6 +487,66 @@ ln 源文件 链接文件    硬链接
 ln -s 源文件 链接文件    软链接
 ```
 
+## 进程相关命令  
+
+### ps  
+
+-a：显示终端上的所有进程，包括其他用户的进程  
+-u：显示进程的详细状态  
+-x：显示没有控制终端的进程  
+-w：显示加宽，以便显示更多信息  
+-r：只显示正在运行的进程  
+
+常用组合如下：  
+
+```shell
+ps -aux  显示所有包含其他用户的进程
+ps -ef （与ps -aux等价）
+ps -ef | grep sleep  筛查进程名为sleep的进程
+```
+
+### top  
+
+可以动态地显示运行的进程（按q可以退出）  
+
+### kill  
+
+```shell
+kill 12345          杀死进程  
+kill -KILL 123456   强制杀死进程  
+kill -9 123456      彻底杀死进程  
+```
+
+### killall  
+
+可以根据进程名杀死所有进程  
+
+```shell
+killall -9 sleep
+```
+
+## 其他命令  
+
+### 计算器  
+
+```shell
+bc
+```
+
+示例如下：  
+
+```shell
+jys@ubuntu:~/unix-programming/course$ bc
+bc 1.07.1
+Copyright 1991-1994, 1997, 1998, 2000, 2004, 2006, 2008, 2012-2017 Free Software Foundation, Inc.
+This is free software with ABSOLUTELY NO WARRANTY.
+For details type `warranty'. 
+2 + 5
+7
+3 ^ 4
+81
+```
+
 ## 参考  
 
 Advanced Programming in the UNIX Environment, 3rd edition  

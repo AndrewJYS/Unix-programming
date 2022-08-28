@@ -150,6 +150,81 @@ close(fd);
 
 ## lseek  
 
+```c
+#include <unistd.h>
+
+off_t lseek(int fd, off_t offset, int whence);
+
+//Returns: new file offset if OK, −1 on error
+```
+
+**By default**, this **offset** is initialized to **0** when a file is opened, unless the **O_APPEND** option is specified.  
+
+If whence is **SEEK_SET**, the file’s offset is set to offset bytes from the beginning of the file.  
+If whence is **SEEK_CUR**, the file’s offset is set to its current value plus the offset. The offset can be positive or negative.  
+If whence is **SEEK_END**, the file’s offset is set to the size of the file plus the offset. The offset can be positive or negative.  
+
+This technique can **also be used to determine if a file is capable of seeking**. If the file descriptor refers to a **pipe, FIFO, or socket**, lseek sets errno to ESPIPE and **returns −1**.  
+
+The file’s **offset can be greater than the file’s current size**, in which case the next write to the file will **extend the file**. This is referred to as creating a **hole in a file** and is allowed.  
+
+Example:  
+
+```c
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#define SIZE 128
+
+int main()
+{
+    int fd = -1;
+    int ret = -1;
+    char buf[SIZE];
+
+    // open file
+    fd = open("txt", O_RDWR | O_CREAT, 0644);
+    if (-1 == fd) {
+        perror("open");
+        return 1;
+    }
+    printf("fd = %d\n", fd);
+
+    //write and lseek operation
+    write(fd, "ABCDEFG", 7);
+
+    ret = lseek(fd, 32, SEEK_SET);
+    if (-1 == ret) {
+        perror("lseek");
+        return 1;
+    }
+    write(fd, "1234567890", 10);
+
+    //read file
+    lseek(fd, 0, SEEK_SET);
+    memset(buf, 0, SIZE);
+    ret = read(fd, buf, SIZE);
+    printf("read ret: %d, buf: %s\n", ret, buf);
+
+    //close file
+    close(fd);
+
+    return 0;
+}
+```
+
+output:(printf will terminate if find character '\0')  
+
+```md
+fd = 3
+read ret: 42, buf: ABCDEFG
+```
+
 ## references  
 
 Advanced Programming in the UNIX Environment, 3rd edition, Chapter 3  
