@@ -522,7 +522,7 @@ kill -9 123456      彻底杀死进程
 可以根据进程名杀死所有进程  
 
 ```shell
-killall -9 sleep
+killall -9 sleep  将名为sleep的进程杀死
 ```
 
 ## 其他命令  
