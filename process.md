@@ -269,6 +269,116 @@ as for pid_t waitpid(pid_t pid, int *statloc, int options), the argument pid has
 
 In addition, if **options == WNOHANG**, then If no child specified by pid has yet changed state, then **return immediately**, instead of blocking. In this case, the return value of waitpid() is 0. If the calling process has no children that match the specification in pid, waitpid() fails with the error ECHILD.  
 
+## zombie  
+
+If a parent creates a child, but **fails to perform a wait()**, then an entry for the **zombie child will be maintained indefinitely in the kernel’s process table**. If a large number of such zombie children are created, they will eventually fill the kernel process table, preventing the creation of new processes. Since the **zombies can’t be killed by a signal**, the **only way to remove them from the system is to kill their parent (or wait for it to exit)**, at which time the zombies are adopted and waited on by init, and consequently removed from the system.
+
+```c
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+int main()
+{
+    pid_t pid = -1;
+
+    pid = fork();
+    if (-1 == pid) {
+        perror("fork");
+        return 1;
+    }
+
+    // child process
+    if (0 == pid) {
+        for (int i = 0; i < 5; ++i) {
+            printf("child do things %d\n", i);
+            sleep(1);
+        }
+        printf("child exit\n");
+        exit(0);
+    }
+    // int status = -1;
+    // wait(&status);
+
+    //parent process
+    sleep(100);
+    // when parent is sleeping, the exited child becomes a zombie
+    // after parent sleeping, resources of chid will be collected by parent
+
+    return 0;
+}
+```
+
+## exec  
+
+one use of the **fork** function is to create a new process (the child) that then causes another program to be executed by calling one of the **exec** functions. When a process calls one of the exec functions, **that process is completely replaced by the new program**, and the new program **starts executing at its main function**. The **process ID does not change** across an exec, because a new process is not created; exec merely replaces the current process — its text, data, heap, and stack segments — with a brand-new program from disk.  
+
+```c
+#include <unistd.h>
+
+int execl(const char *pathname, const char *arg0, ... /* (char *)0 */ );
+int execv(const char *pathname, char *const argv[]);
+int execle(const char *pathname, const char *arg0, ...
+/* (char *)0, char *const envp[] */ );
+int execve(const char *pathname, char *const argv[], char *const envp[]);
+int execlp(const char *filename, const char *arg0, ... /* (char *)0 */ );
+int execvp(const char *filename, char *const argv[]);
+int fexecve(int fd, char *const argv[], char *const envp[]);
+
+//All seven return: −1 on error, no return on success
+```
+
+The **first difference** in these functions is that **the first four take a pathname argument**, **the next two take a filename argument**, and **the last one takes a file descriptor argument**. When a filename argument is specified,  
+• If filename **contains a '/'**, it is **taken as a pathname**.  
+• **Otherwise**, the executable file is searched for in the directories specified by the **PATH** environment variable.  
+The PATH variable contains a list of directories, called path prefixes, that are separated by ':'.  
+
+The **next difference** concerns the **passing of the argument list (l stands for list and v stands for vector)**. The functions execl, execlp, and execle require each of the command-line arguments to the new program to be specified as separate arguments. We **mark the end of the arguments with a null pointer**. For the other four functions (execv, execvp, execve, and fexecve), we have to **build an array of pointers to the arguments**, and the address of this array is the argument to these three functions.  
+
+example for execlp:  
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main()
+{
+    printf("hello world\n");
+    execlp("ls", "ls", "-l", "/home", NULL);
+
+    printf("hello world\n");
+    
+    return 0;
+}
+```
+
+Output is as below, note that **the second "hello world" is not output**, because, execlp replaces completely the previous process.  
+
+```shell
+jys@ubuntu:~/unix-programming/course$ ./a.out
+hello world
+total 4
+drwxr-xr-x 27 jys jys 4096 Aug 28 23:26 jys
+```
+
+example for execlp, execv  
+
+```c
+//execlp
+execlp("/bin/ls", "ls", "-l", "/home", NULL);
+
+//execv
+char *args[] = {"ls", "-l", "/home", NULL};
+execv("/bin/ls", args);
+
+//execvp
+char *args[] = {"ls", "-l", "/home", NULL};
+execv("ls", args);
+```
+
 ## references  
 
 Advanced Programming in the UNIX Environment, 3rd edition, Chapter 8  
