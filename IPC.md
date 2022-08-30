@@ -224,9 +224,123 @@ int main()
 
 ## 使用FIFO通信  
 
+假设我们创建了一个FIFO文件，现在用它来给两个进程通信
 
+```c
+//写端
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+#define SIZE 128
+
+int main()
+{
+    int fd = -1;
+    int ret = -1;
+    int i = 0;
+    char buf[SIZE];
+
+    // open an FIFO with write-only
+    // cannot use  O_CREAT, for fifo is a special file
+    fd = open("fifo", O_WRONLY);
+    if (-1 == fd) {
+        perror("open");
+        return 1;
+    }
+    printf("write-only fifo opened\n");
+
+    //write into fifo
+    while (1) {
+        memset(buf, 0, SIZE);
+        sprintf(buf, "hello world %d", i++);
+        ret = write(fd, buf, strlen(buf));
+        if (ret <= 0) {
+            perror("write");
+            break;
+        }
+        printf("write into fifo length: %d\n", ret);
+        sleep(1);
+    }
+
+    //close fifo
+    close(fd);
+
+    return 0;
+}
+```
+
+```c
+//读端
+......
+
+int main()
+{
+    ......
+
+    //open fifo with read-only
+    fd = open("fifo", O_RDONLY);
+    if (-1 == fd) {
+        perror("open");
+        return 1;
+    }
+    printf("read-only fifo opened\n");
+
+    // read fifo in a loop
+    while (1) {
+        memset(buf, 0, SIZE);
+        ret = read(fd, buf, SIZE);
+        if (ret <= 0) {
+            perror("read");
+            break;
+        }
+
+        printf("buf: %s\n", buf);
+    }
+
+    //close fifo
+    close(fd);
+    
+    return 0;
+}
+```
+
+## Memory-Mapped  
+
+```c
+#include <sys/mman.h>
+
+void *mmap(void *addr, size_t len, int prot, int flag, int fd, off_t off );
+
+//Returns: starting address of mapped region if OK, MAP_FAILED on error
+```
+
+The **addr** argument lets us specify **the address where we want the mapped region to start**. We **normally** set this value to **0** to **allow the system to choose the starting address**. The return value of this function is the starting address of the mapped area.  
+
+The **fd** argument is the file descriptor specifying the **file that is to be mapped**. We have to **open this file before we can map it into the address space**.  
+
+The **len** argument is the **number of bytes to map**. Although length doesn’t need to be a multiple of the system page size (as returned by sysconf(_SC_PAGESIZE)), the kernel creates mappings in units of this size, so that length is, in effect, rounded up to the next multiple of the page size.  
+
+**off** is the starting **offset in the file of the bytes to map**.  
+
+The **prot** argument specifies the **protection of the mapped region**. The protection specified for a region **can’t allow more access than the open mode of the file**. For example, we can’t specify PROT_WRITE if the file was opened read-only.  
+
+|prot|description|
+:-:|:-:
+|PROT_NONE   |The region may not be accessed                |
+|PROT_READ   |The contents of the region can be read        |
+|PROT_WRITE  |The contents of the region can be modified    |
+|PROT_EXEC   |The contents of the region can be executed    |
+
+The **flags** argument is a bit mask of options controlling various aspects of the mapping operation. Exactly one of the following values must be included in this mask:
+**MAP_PRIVATE**: Create a private mapping. **Modifications to the contents of the region** are **not visible to other processes employing the same mapping**, and, in the case of a file mapping, are not carried through to the underlying file.  
+**MAP_SHARED**： Create a shared mapping. **Modifications to the contents of the region** are **visible to other processes mapping the same region** with the MAP_SHARED attribute and, in the case of a file mapping, are carried through to the underlying file. Updates to the file are not guaranteed to be immediate;
 
 ## references  
 
-Advanced Programming in the UNIX Environment, 3rd edition, Chapter 15  
-The Linux programming interface a Linux and UNIX system programming handbook, 1st edition, Chapter 11  
+Advanced Programming in the UNIX Environment, 3rd edition, Chapter 14, 15  
+The Linux programming interface a Linux and UNIX system programming handbook, 1st edition, Chapter 11, 49  

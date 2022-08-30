@@ -95,20 +95,253 @@ make默认在工作目录中寻找名为GNUmakefile, makefile, Makefile的文件
 
 ```makefile
 main:add.o sub.o mul.o div.o main.o
-	gcc add.o sub.o mul.o div.o main.o -o main
+    gcc add.o sub.o mul.o div.o main.o -o main
 
 add.o:add.c
-	gcc -c add.c -o add.o
+    gcc -c add.c -o add.o
 
 sub.o:sub.c
-	gcc -c sub.c -o sub.o
+    gcc -c sub.c -o sub.o
 
 mul.o:mul.c
-	gcc -c mul.c -o mul.o
+    gcc -c mul.c -o mul.o
 
 div.o:div.c
-	gcc -c div.c -o div.o
+    gcc -c div.c -o div.o
 
-maino.o:main.c
-	gcc -c main.c -o main.o
+main.o:main.c
+    gcc -c main.c -o main.o
 ```
+
+编译  
+
+```shell
+make
+```
+
+输出  
+
+```shell
+gcc -c add.c -o add.o
+gcc -c sub.c -o sub.o
+gcc -c mul.c -o mul.o
+gcc -c div.c -o div.o
+gcc -c main.c -o main.o
+gcc add.o sub.o mul.o div.o main.o -o main
+```
+
+使用中间文件.o的目的是，当某个.c文件修改后，重新编译不需要从头编译，例如，我们修改div.c文件后重新编译，只会对div.c重新编译，然后链接  
+
+```shell
+jys@ubuntu:~/unix-programming/course/makefile$ make
+gcc -c div.c -o div.o
+gcc add.o sub.o mul.o div.o main.o -o main
+```
+
+## makefile中的变量  
+
+注意到上述例子中，频繁的写.o文件很麻烦，也容易写漏，因此引入变量。Makefile中使用变量有点像C语言中的宏定义，使用该变量就是内容替换。  
+
+### 自定义变量  
+
+1.定义变量方法  
+变量名=变量值  
+
+2.引用变量  
+$(变量名)  或  ${变量名}  
+
+3.makefile的变量名  
+可以用数字开头  
+变量是大小写敏感的  
+变量一般都在makefile的头部定义  
+变量几乎可以在makefile中的任何地方使用  
+
+下面重写上述例子  
+
+```makefile
+OBJS = add.o sub.o mul.o div.o main.o
+
+main:$(OBJS)
+    gcc $(OBJS) -o main
+
+add.o:add.c
+    gcc -c add.c -o add.o
+
+sub.o:sub.c
+    gcc -c sub.c -o sub.o
+
+mul.o:mul.c
+    gcc -c mul.c -o mul.o
+
+div.o:div.c
+    gcc -c div.c -o div.o
+
+main.o:main.c
+    gcc -c main.c -o main.o
+
+clean:
+    rm -rf $(OBJS) main
+```
+
+```shell
+jys@ubuntu:~/unix-programming/course/makefile$ make
+gcc -c add.c -o add.o
+gcc -c sub.c -o sub.o
+gcc -c mul.c -o mul.o
+gcc -c div.c -o div.o
+gcc -c main.c -o main.o
+gcc add.o sub.o mul.o div.o main.o -o main
+jys@ubuntu:~/unix-programming/course/makefile$ make clean
+rm -rf add.o sub.o mul.o div.o main.o main
+jys@ubuntu:~/unix-programming/course/makefile$ 
+```
+
+### 三个自动变量  
+
+```md
+$@：表示目标
+$<：表示第一个依赖
+$^：表示所有依赖
+```
+
+这些变量不能单独使用，必须在命令中使用  
+
+```makefile
+OBJS = add.o sub.o mul.o div.o main.o
+
+main:$(OBJS)
+    gcc $^ -o $@
+
+add.o:add.c
+    gcc -c $< -o $@
+
+sub.o:sub.c
+    gcc -c $< -o $@
+
+mul.o:mul.c
+    gcc -c $< -o $@
+
+div.o:div.c
+    gcc -c $< -o $@
+
+main.o:main.c
+    gcc -c $< -o $@
+
+clean:
+    rm -rf $(OBJS) main
+```
+
+### 模式规则  
+
+使用模式匹配进一步优化上述代码  
+
+```makefile
+OBJS = add.o sub.o mul.o div.o main.o
+
+main:$(OBJS)
+    gcc $^ -o $@
+
+# 模式匹配 所有的.o文件都依赖对应的.c
+# 将所有的.c生成对应.o文件
+%.o:%.c
+    gcc -c $< -o $@
+
+clean:
+    rm -rf $(OBJS) main
+```
+
+## makefile中的两个函数  
+
+add.o sub.o mul.o div.o main.o，一个个列举容易遗漏，因此引入函数  
+
+**wildcard**：查找指定目录下的指定类型的文件  
+**patsubst**：匹配替换  
+
+```makefile
+# 获取当前目录下所有的.c文件
+SRC=$(wildcard ./*.c)
+
+# 将SRC中所有出现的.c匹配到对应的.o
+OBJS=$(patsubst %.c, %.o, $(SRC))
+
+main:$(OBJS)
+    gcc $^ -o $@
+
+%.o:%.c
+    gcc -c $< -o $@
+
+clean:
+    rm -rf $(OBJS) main
+```
+
+## 伪目标  
+
+```shell
+jys@ubuntu:~/unix-programming/course/makefile$ make
+gcc -c mul.c -o mul.o
+gcc -c main.c -o main.o
+gcc -c add.c -o add.o
+gcc -c div.c -o div.o
+gcc -c sub.c -o sub.o
+gcc mul.o main.o add.o div.o sub.o -o main
+jys@ubuntu:~/unix-programming/course/makefile$ touch clean
+jys@ubuntu:~/unix-programming/course/makefile$ make clean
+make: 'clean' is up to date.
+```
+
+如果目录中已经存在clean文件，那么make clean失效，因此引入伪目标  
+
+```makefile
+.PHONY:clean
+```
+
+声明为伪目标后，makefile将不再判断目标是否在当前目录存在，或该目标是否需要更新  
+
+```makefile
+# version-5
+SRC=$(wildcard ./*.c)
+OBJS=$(patsubst %.c, %.o, $(SRC))
+
+main:$(OBJS)
+    gcc $^ -o $@
+
+%.o:%.c
+    gcc -c $< -o $@
+
+.PHONY:clean
+clean:
+    rm -rf $(OBJS) main
+```
+
+## 其他  
+
+在命令中的特殊符号如下：  
+
+-：若本条命令出错，make也会执行后续的命令，比如"-rm main.o"  
+@：不显示命令本身，只显示结果，比如“@echo clean done"  
+
+```makefile
+SRC=$(wildcard ./*.c)
+OBJS=$(patsubst %.c, %.o, $(SRC))
+
+main:$(OBJS)
+    gcc $^ -o $@
+
+%.o:%.c
+    @gcc -c $< -o $@
+
+.PHONY:clean
+clean:
+    -rm -rf $(OBJS) main
+```
+
+```shell
+jys@ubuntu:~/unix-programming/course/makefile$ make
+gcc mul.o main.o add.o div.o sub.o -o main
+jys@ubuntu:~/unix-programming/course/makefile$ make clean
+rm -rf  ./mul.o  ./main.o  ./add.o  ./div.o  ./sub.o main
+```
+
+## 参考  
+
+[相关课程](https://www.bilibili.com/video/BV1Yo4y1D7Ap?p=65&spm_id_from=pageDriver&vd_source=4b75b13c678ed297c8d0ed42e806f46b)  
