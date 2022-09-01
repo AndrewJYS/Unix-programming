@@ -314,7 +314,7 @@ int main()
 ```c
 #include <sys/mman.h>
 
-void *mmap(void *addr, size_t len, int prot, int flag, int fd, off_t off );
+void *mmap(void *addr, size_t len, int prot, int flag, int fd, off_t offset );
 
 //Returns: starting address of mapped region if OK, MAP_FAILED on error
 ```
@@ -325,9 +325,9 @@ The **fd** argument is the file descriptor specifying the **file that is to be m
 
 The **len** argument is the **number of bytes to map**. Although length doesn’t need to be a multiple of the system page size (as returned by sysconf(_SC_PAGESIZE)), the kernel creates mappings in units of this size, so that length is, in effect, rounded up to the next multiple of the page size.  
 
-**off** is the starting **offset in the file of the bytes to map**.  
+The **offset** argument specifies the **starting point of the mapping in the file**, and must **be a multiple of the system page size**. To map the entire file, we would specify offset as 0 and length as the size of the file.  
 
-The **prot** argument specifies the **protection of the mapped region**. The protection specified for a region **can’t allow more access than the open mode of the file**. For example, we can’t specify PROT_WRITE if the file was opened read-only.  
+The **prot** argument specifies the **protection of the mapped region**. The protection (**when flags == MAP_SHARED**) specified for a region **can’t allow more access than the open mode of the file**. For example, we can’t specify PROT_WRITE if the file was opened read-only.  
 
 |prot|description|
 :-:|:-:
@@ -337,8 +337,219 @@ The **prot** argument specifies the **protection of the mapped region**. The pro
 |PROT_EXEC   |The contents of the region can be executed    |
 
 The **flags** argument is a bit mask of options controlling various aspects of the mapping operation. Exactly one of the following values must be included in this mask:
-**MAP_PRIVATE**: Create a private mapping. **Modifications to the contents of the region** are **not visible to other processes employing the same mapping**, and, in the case of a file mapping, are not carried through to the underlying file.  
-**MAP_SHARED**： Create a shared mapping. **Modifications to the contents of the region** are **visible to other processes mapping the same region** with the MAP_SHARED attribute and, in the case of a file mapping, are carried through to the underlying file. Updates to the file are not guaranteed to be immediate;
+**MAP_PRIVATE**: Create a private mapping. **Modifications to the contents of the region** are **not visible to other processes employing the same mapping**, and, in the case of **a file mapping, are not carried through to the underlying file**.  
+**MAP_SHARED**： Create a shared mapping. **Modifications to the contents of the region** are **visible to other processes mapping the same region** with the MAP_SHARED attribute and, in the case of a file mapping, are **carried through to the underlying file**. Updates to the file are not guaranteed to be immediate;
+
+```c
+#include <sys/mman.h>
+
+int munmap(void *addr, size_t len);
+
+//Returns: 0 if OK, −1 on error
+```
+
+example: note that the **file with size 0 cannot be mapped**! we can **ftruncate** the file or write something into it to **make sure the file size bigger than 0** before memory mapping, otherwise, "**bus error**" will be thrown
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+
+int main()
+{
+    int fd = -1;
+    int ret = -1;
+    void* addr = NULL;
+
+    // open a file with read-and-write
+    fd = open("txt", O_RDWR);
+    if (-1 == fd) {
+        perror("open");
+        return 1;
+    }
+    //if no ftruncate, then bus error will be thrown
+    ftruncate(fd, 1024);
+
+    // memory mapping
+    addr = mmap(NULL, 1024, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (addr == MAP_FAILED) { //must check returned addr
+        perror("mmap");
+        return 1;
+    }
+    printf("mmap ok\n");
+
+    //close file
+    close(fd);
+
+    //write into mapped memory, also into file
+    memcpy(addr, "1234567890", 10);
+
+    // disconnect mmap
+    munmap(addr, 1024);
+
+    return 0;
+}
+```
+
+```shell
+jys@ubuntu:~/unix-programming/course/IPC$ gcc mmap.c
+jys@ubuntu:~/unix-programming/course/IPC$ ./a.out 
+mmap ok
+jys@ubuntu:~/unix-programming/course/IPC$ cat txt
+1234567890
+```
+
+## 共享映射实现父子进程通信  
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
+
+int main()
+{
+    int fd = -1;
+    int ret = -1;
+    pid_t pid = -1;
+    void* addr = NULL;
+
+    // open a file with read-and-write
+    fd = open("txt", O_RDWR);
+    if (-1 == fd) {
+        perror("open");
+        return 1;
+    }
+    //if no ftruncate, then bus error will be thrown
+    ftruncate(fd, 1024);
+
+    // memory mapping
+    addr = mmap(NULL, 1024, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (addr == MAP_FAILED) {
+        perror("mmap");
+        return 1;
+    }
+    printf("mmap ok\n");
+
+    //close file
+    close(fd);
+
+    //create a child process
+    pid = fork();
+    if (-1 == pid) {
+        perror("fork");
+        return 1;
+    }
+    
+    if (0 == pid) {
+        // child process
+        //write into mapped memory, also into file
+        memcpy(addr, "1234567890", 10);
+    }
+    else {
+        //parent
+        wait(NULL);
+        printf("addr:%s\n", (char* )addr);
+    }
+
+    // disconnect mmap both for child and parent process
+    munmap(addr, 1024);
+
+    return 0;
+}
+```
+
+## 一般进程间使用mmap通信  
+
+```c
+// inter process communication: read
+......
+
+int main()
+{
+    ......
+    // read mapped memory
+    printf("addr: %s\n", (char* )addr);
+    ......
+}
+```
+
+```c
+// inter process communication: write
+......
+
+int main()
+{
+    ......
+    //write into mapped memory, also into file
+    memcpy(addr, "1234567890", 10);
+    ......
+}
+```
+
+## 利用匿名映射实现父子进程通信  
+
+仍然使用mmap函数，但是参数有所改变, flags中使用**MAP_ANONYMOUS | MAP_SHARED**  
+
+**MAP_ANONYMOUS**: The **mapping is not backed by any file**; its contents are initialized to zero. The fd argument is ignored; however, some implementations require **fd to be -1** if MAP_ANONYMOUS (or MAP_ANON) is specified, and portable applications should ensure this. The **offset argument should be zero**. The use of **MAP_ANONYMOUS in conjunction with MAP_SHARED** is supported on Linux only since kernel 2.4.
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
+
+int main()
+{
+    int fd = -1;
+    int ret = -1;
+    void* addr = NULL;
+    pid_t pid = -1;
+
+    // create anonymous map
+    addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    if (addr == MAP_FAILED) {
+        perror("mmap");
+        return 1;
+    }
+    printf("create anonymous map\n");
+
+    // create child process
+    pid = fork();
+    if (-1 == pid) {
+        perror("fork");
+        return 1;
+    }
+
+    //child-parent communication
+    if (0 == pid) {
+        //child write
+        memcpy(addr, "1234567890", 10);
+    }
+    else {
+        // parent read
+        wait(NULL);
+        printf("parent process: %s\n", (char* )addr);
+    }
+
+    //disconnect mapping
+    munmap(addr, 4096);
+
+    return 0;
+}
+```
 
 ## references  
 

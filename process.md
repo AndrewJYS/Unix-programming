@@ -379,7 +379,117 @@ char *args[] = {"ls", "-l", "/home", NULL};
 execv("ls", args);
 ```
 
+## terminal & shell  
+
+Both a conventional terminal and a terminal emulator have an **associated terminal driver** that **handles input and output** on the device. (In the case of a terminal emulator, the device is a pseudoterminal.)  
+
+A **shell** is a **command-line interpreter** that reads user input and executes commands. The user **input to a shell is normally from the terminal** (an interactive shell) or **sometimes from a file** (called a shell script).  
+
+## Process Groups  
+
+A process group is a collection of **one or more processes**, usually associated with the same job, that can **receive signals from the same terminal**. Each process group has a **unique process group ID**.  
+
+```c
+#include <unistd.h>
+
+pid_t getpgrp(void);
+
+//Returns: process group ID of calling process
+```
+
+```c
+#include <unistd.h>
+
+pid_t getpgid(pid_t pid);
+
+//Returns: process group ID if OK, −1 on error
+```
+
+If pid is 0, the process group ID of the calling process is returned. Thus  
+
+```c
+getpgid(0);
+```
+
+is equivalent to  
+
+```c
+getpgrp();
+```
+
+Each process group can have a process group leader. **The leader is identified by its process group ID being equal to its process ID**. It is possible for a process group **leader** to **create a process group, create processes in the group, and then terminate**. The process **group still exists**, **as long as at least one process is in the group**, regardless of whether the group leader terminates. This is called the process group lifetime--the period of time that begins when the group is created and ends when the last remaining process leaves the group. The last remaining process in the process group can either terminate or enter some other process group.  
+
+A process **joins an existing process group or creates a new process group** by calling **setpgid**  
+
+```c
+#include <unistd.h>
+
+int setpgid(pid_t pid, pid_t pgid);
+
+//Returns: 0 if OK, −1 on error
+```
+
+This function sets the process group ID to pgid in the process whose process ID equals pid. If the two arguments are equal, the process specified by pid becomes a process group leader. If pid is 0, the process ID of the caller is used. Also, if pgid is 0, the process ID specified by pid is used as the process group ID.  
+
+## Sessions  
+
+A session is a collection of **one or more process groups**.  
+
+A process establishes a new session by calling the **setsid** function.  
+
+```c
+#include <unistd.h>
+
+pid_t setsid(void);
+
+// Returns: process group ID if OK, −1 on error
+```
+
+If the **calling process** is **not a process group leader**, this function creates a new session. Three things happen.  
+1.The process becomes the session leader of this new session.  
+2.The process becomes the process group leader of a new process group.  
+3.The process has no controlling terminal. If the process had a controlling terminal before calling setsid, that association is broken.  
+This function **returns an error if the caller is already a process group leader**. To ensure this is not the case, the usual practice is to call fork and have the parent terminate and the child continue.  
+
+The **getsid** function returns the process group ID of a process’s session leader.  
+
+```c
+#include <unistd.h>
+
+pid_t getsid(pid_t pid);
+
+//Returns: session leader’s process group ID if OK, −1 on error
+```
+
+If **pid is 0**, getsid returns the process group ID of the calling process’s session leader  
+
+example:  
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+int main()
+{
+    pid_t pid = -1;
+
+    // get process group ID of a process’s session leader
+    pid = getsid(0);
+    if (-1 == pid) {
+        perror("getsid");
+        return 1;
+    }
+    printf("sid: %d\n", pid);
+
+    return 0;
+
+}
+```
+
 ## references  
 
-Advanced Programming in the UNIX Environment, 3rd edition, Chapter 8  
-The Linux programming interface a Linux and UNIX system programming handbook, 1st edition, Chapter 25, 26  
+Advanced Programming in the UNIX Environment, 3rd edition, Chapter 1, 8, 9  
+The Linux programming interface a Linux and UNIX system programming handbook, 1st edition, Chapter 25, 26, 62  
+[相关课程](https://www.bilibili.com/video/BV1Yo4y1D7Ap)  
