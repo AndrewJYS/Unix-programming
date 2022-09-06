@@ -189,6 +189,8 @@ For now, we need to be aware that a process that calls _wait_ or _waitpid_ can
 1.Block, if all of its children are still running  
 2.Return immediately with the termination status of **a child** (note that **as long as one** child process terminates, the _wait_ or _waitpid_ function will return. so if we want to **wait** for **all** child processes **exiting**, we should **call the function several times**), if a child has terminated and is waiting for its termination status to be fetched  
 3.Return immediately with an error, if it doesn’t have any child processes  
+
+If a **child has already terminated and is a zombie**, **wait returns immediately** with that child’s status. **Otherwise, it blocks the caller until a child terminates**. If the caller blocks and **has multiple children, wait returns when one terminates**.  
   
 The differences between these two functions are as follows:  
 The **wait** function can **block the caller** until a child process terminates, whereas **waitpid** has an **option** that **prevents** it from **blocking**.  

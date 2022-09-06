@@ -7,6 +7,11 @@ Advanced Programming in the UNIX Environment, W. Richard Stevens / Stephen A. Ra
 Operating Systems: Three Easy Pieces, Remzi Arpaci-Dusseau / Andrea Arpaci-Dusseau, 1st edition  
 [unix系统编程相关课程](https://www.bilibili.com/video/BV1Yo4y1D7Ap)  
 
+## 其他参考  
+
+Computer Systems: A Programmer's Perspective, Randal E.Bryant / David O'Hallaron, 3rd Edition  
+汇编语言，王爽，第四版  
+
 ## 说明  
 
 本仓库记录unix系统编程的重要内容，主要包括  
